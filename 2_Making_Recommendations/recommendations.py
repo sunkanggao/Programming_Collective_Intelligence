@@ -24,6 +24,7 @@ critics={'Lisa Rose': {'Lady in the Water': 2.5, 'Snakes on a Plane': 3.5,
 from math import sqrt
 import pprint
 
+
 # 返回一个有关person1和person2的基于距离的相似度评价
 def sim_distance(prefs, person1, person2):
     si = {}
@@ -37,6 +38,7 @@ def sim_distance(prefs, person1, person2):
                          for item in prefs[person1] if item in prefs[person2]])
 
     return 1 / (1 + sqrt(sum_of_squares))
+
 
 # 返回p1和p2的皮尔逊相关系数
 def sim_pearson(prefs, p1, p2):
@@ -62,6 +64,14 @@ def sim_pearson(prefs, p1, p2):
     return num / den
 
 
+# 从返回偏好的字典中返回最为匹配者
+def topMatches(prefs, person, n=5, similarity=sim_pearson):
+    scores = [(similarity(prefs, person, other), other) for other in prefs if other != person]
+    scores.sort()
+    scores.reverse()
+    return scores[0 : n]
+
 
 if __name__ == "__main__":
-    pprint.pprint(critics)
+    # pprint.pprint(critics)
+    print topMatches(critics, 'Toby', 3)
