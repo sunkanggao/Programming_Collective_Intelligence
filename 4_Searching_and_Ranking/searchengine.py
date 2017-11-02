@@ -237,5 +237,5 @@ if __name__ == '__main__':
     crawler.crawl(pageList)
 
     # 查询
-    # e = searcher('searchindex.db')
-    # e.getmatchrows('the communist party')
+    e = searcher('searchindex.db')
+    e.getmatchrows('the communist party')
