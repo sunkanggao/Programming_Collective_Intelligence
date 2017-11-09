@@ -89,6 +89,7 @@ class crawler:
         for i in range(depth):
             newpages = set()
             for page in pages:
+                if page.find('/wiki/') < 0: continue
                 try:
                     proxy = urllib2.ProxyHandler({'https' : '127.0.0.1:1080'})
                     opener = urllib2.build_opener(proxy)
@@ -173,7 +174,9 @@ class searcher:
     def getscoredlist(self, rows, wordids):
         totalscores = dict([(row[0], 0) for row in rows])
 
-        weights = [(1.0, self.frequencyscore(rows))]
+        weights = [(1.0, self.frequencyscore(rows)),
+                   (1.5, self.locationscore(rows)),
+                   (1.5, self.distancescore(rows))]
 
         for (weight, scores) in weights:
             for url in totalscores:
@@ -228,14 +231,21 @@ class searcher:
             if dist < mindistance[row[0]]: mindistance[row[0]] = dist
         return self.normalizescores(mindistance, smallIsBetter=True)
 
+    # 简单计数
+    def inboundlinkscore(self, rows):
+        uniqueurls = set([row[0] for row in rows])
+        inboundcount = dict([(u, self.con.execute('select count(*) from link where toid=%d' % u).fetchone()[0]) \
+                             for u in uniqueurls])
+        return self.normalizescores(inboundcount)
+
 
 if __name__ == '__main__':
     # 爬取网页，建立数据库
-    pageList = ['https://en.wikipedia.org/wiki/China']
-    crawler = crawler('searchindex.db')
-    crawler.createindextables()
-    crawler.crawl(pageList)
+    # pageList = ['https://en.wikipedia.org/wiki/Functional_programming']
+    # crawler = crawler('Functional_programming.db')
+    # crawler.createindextables()
+    # crawler.crawl(pageList)
 
     # 查询
-    # e = searcher('searchindex.db')
-    # e.getmatchrows('the communist party')
+    e = searcher('Functional_programming.db')
+    e.query('functional programming')
