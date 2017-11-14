@@ -2,6 +2,10 @@
 from math import tanh
 import sqlite3
 
+def dtanh(y):
+    return 1.0 - y * y
+
+
 class searchnet:
     def __init__(self, dbname):
         self.con = sqlite3.connect(dbname)
@@ -106,6 +110,55 @@ class searchnet:
         self.setupnetwork(wordids, urlids)
         return self.feedforward()
 
+    # 利用反向传播法进行训练，N是学习率
+    def backPropagate(self, targets, N=0.5):
+        # 计算输出层的误差
+        output_deltas = [0.0] * len(self.urlids)
+        for k in range(len(self.urlids)):
+            error = targets[k] - self.ao[k]
+            output_deltas[k] = dtanh(self.ao[k]) * error
+
+        # 计算隐藏层的误差
+        hidden_deltas = [0.0] * len(self.hiddenids)
+        for j in range(len(self.hiddenids)):
+            error = 0.0
+            for k in range(len(self.urlids)):
+                error += output_deltas[k] * self.wo[j][k]
+            hidden_deltas[j] = dtanh(self.ah[j]) * error
+
+        # 更新输出权重
+        for j in range(len(self.hiddenids)):
+            for k in range(len(self.urlids)):
+                change = output_deltas[k] * self.ah[j]
+                self.wo[j][k] += N * change
+
+        # 更新输入权重
+        for i in range(len(self.wordids)):
+            for j in range(len(self.hiddenids)):
+                change = hidden_deltas[j] * self.ai[i]
+                self.wi[i][j] += N * change
+
+    def trainquery(self, wordids, urlids, selectedurl):
+        # 如果有必要，生成一个隐藏节点
+        self.getallhiddenids(wordids, urlids)
+
+        self.setupnetwork(wordids, urlids)
+        self.feedforward()
+        targets = [0.0] * len(urlids)
+        targets[urlids.index(selectedurl)] = 1.0
+        self.backPropagate(targets)
+        self.updatedatabase()
+
+    def updatedatabase(self):
+        # 将值存入数据库中
+        for i in range(len(self.wordids)):
+            for j in range(len(self.hiddenids)):
+                self.setstrength(self.wordids[i], self.hiddenids[j], 0, self.wi[i][j])
+        for j in range(len(self.hiddenids)):
+            for k in range(len(self.urlids)):
+                self.setstrength(self.hiddenids[j], self.urlids[k], 1, self.wo[j][k])
+        self.con.commit()
+
 
 if __name__ == '__main__':
     mynet = searchnet('nn.db')
@@ -116,4 +169,9 @@ if __name__ == '__main__':
     for c in mynet.con.execute('select * from wordhidden'): print c
     for c in mynet.con.execute('select * from hiddenurl'): print c
 
+    print u'前馈：'
+    print mynet.getresult([wWorld, wBank], [uWorldBank, uRiver, uEarth])
+
+    print u'前馈+反向传播：'
+    mynet.trainquery([wWorld, wBank], [uWorldBank, uRiver, uEarth], uWorldBank)
     print mynet.getresult([wWorld, wBank], [uWorldBank, uRiver, uEarth])

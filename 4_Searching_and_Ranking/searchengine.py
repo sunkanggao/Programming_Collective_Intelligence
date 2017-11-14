@@ -4,7 +4,9 @@ import urllib2
 from BeautifulSoup import *
 from urlparse import urljoin
 import sqlite3
+import nn
 
+mynet = nn.searchnet('nn.db')
 ignorewords = set(['the','of','to','and','a','in','is','it'])
 
 class crawler:
@@ -234,6 +236,7 @@ class searcher:
         rankedscores = sorted([(score, url) for (url, score) in scores.items()], reverse=True)
         for (score, urlid) in rankedscores[:10]:
             print '%f\t%s' % (score, self.geturlname(urlid))
+        return wordids, [r[1] for r in rankedscores[0:10]]
 
     # 归一化函数
     def normalizescores(self, scores, smallIsBetter=False):
@@ -305,6 +308,14 @@ class searcher:
         maxscore = max(linkscores.values())
         normalizedscores = dict([(u, float(l) / maxscore) for (u, l) in linkscores.items()])
         return normalizedscores
+
+    # 利用神经网络（从点击行为中学习）等到网络经过大量不同样例的训练之后，再将其作为评价值的一部分纳入进来
+    def nnscore(self, rows, wordids):
+        # 获得一个由唯一的URL ID构成的有序列表
+        urlids = [urlid for urlid in set([row[0] for row in rows])]
+        nnres = mynet.getresult(wordids, urlids)
+        scores = dict([(urlids[i], nnres[i]) for i in range(len(urlids))])
+        return self.normalizescores(scores)
 
 
 if __name__ == '__main__':
